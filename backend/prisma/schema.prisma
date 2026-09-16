@@ -1,0 +1,129 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TipoUsuario {
+  ADMIN
+  TECNICO
+}
+
+enum StatusOS {
+  AGUARDANDO_DIAGNOSTICO
+  EM_DIAGNOSTICO
+  AGUARDANDO_APROVACAO
+  APROVADA
+  EM_MANUTENCAO
+  AGUARDANDO_PECA
+  FINALIZADA
+  ENTREGUE
+  CANCELADA
+}
+
+model Usuario {
+  id        Int         @id @default(autoincrement())
+  nome      String
+  email     String      @unique
+  senhaHash String
+  tipo      TipoUsuario
+  ativo     Boolean     @default(true)
+  criadoEm  DateTime    @default(now())
+
+  ordensServico    OrdemServico[]      @relation("TecnicoResponsavel")
+  historicosStatus HistoricoStatusOS[]
+  logsAlteracao    LogAlteracaoOS[]
+}
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  cpfCnpj   String   @unique
+  telefone  String
+  email     String?
+  endereco  String?
+  criadoEm  DateTime @default(now())
+
+  equipamentos  Equipamento[]
+  ordensServico OrdemServico[]
+}
+
+model Equipamento {
+  id          Int      @id @default(autoincrement())
+  tipo        String
+  marca       String
+  modelo      String
+  numeroSerie String?
+  observacoes String?
+  criadoEm    DateTime @default(now())
+
+  clienteId Int
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+
+  ordensServico OrdemServico[]
+}
+
+model OrdemServico {
+  id                  Int       @id @default(autoincrement())
+  numero              String    @unique
+  status              StatusOS  @default(AGUARDANDO_DIAGNOSTICO)
+
+  problemaRelatado    String
+  diagnostico         String?
+  servicoRealizado    String?
+  observacoes         String?
+
+  valorPecas          Decimal   @default(0) @db.Decimal(10, 2)
+  valorMaoDeObra      Decimal   @default(0) @db.Decimal(10, 2)
+  valorTotal          Decimal   @default(0) @db.Decimal(10, 2)
+
+  dataAbertura        DateTime  @default(now())
+  prazoEstimado       DateTime?
+  dataEntrega         DateTime?
+
+  clienteId Int
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+
+  equipamentoId Int
+  equipamento   Equipamento @relation(fields: [equipamentoId], references: [id])
+
+  tecnicoId Int
+  tecnico   Usuario @relation("TecnicoResponsavel", fields: [tecnicoId], references: [id])
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  historicoStatus HistoricoStatusOS[]
+  logsAlteracao   LogAlteracaoOS[]
+}
+
+model HistoricoStatusOS {
+  id             Int       @id @default(autoincrement())
+  statusAnterior StatusOS?
+  statusNovo     StatusOS
+  alteradoEm     DateTime  @default(now())
+
+  ordemServicoId Int
+  ordemServico   OrdemServico @relation(fields: [ordemServicoId], references: [id])
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+}
+
+model LogAlteracaoOS {
+  id          Int      @id @default(autoincrement())
+  campo       String
+  valorAntigo String?
+  valorNovo   String?
+  alteradoEm  DateTime @default(now())
+
+  ordemServicoId Int
+  ordemServico   OrdemServico @relation(fields: [ordemServicoId], references: [id])
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+}
